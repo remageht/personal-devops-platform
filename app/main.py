@@ -20,11 +20,7 @@ threading.Thread(target=start_prometheus, daemon=True).start()
 start_time = time.time()
 
 # Docker client
-try:
-    client = docker.from_env(timeout=10)
-except Exception as e:
-    print(f"Warning: Docker client init failed: {e}")
-    client = None
+client = docker.from_env(timeout=10)
 
 class ContainerAction(BaseModel):
     action: str  # "restart", "stop", "start"
@@ -61,28 +57,34 @@ async def api_status():
 
 @app.post("/api/container/{container_name}/action")
 async def container_action(container_name: str, action: ContainerAction):
-    if not client:
-        raise HTTPException(status_code=500, detail="Docker client not available")
-
     try:
         container = client.containers.get(container_name)
         
         if action.action == "restart":
             container.restart()
-            msg = f"Контейнер {container_name} перезапущен"
+            msg = f"✅ Контейнер **{container_name}** перезапущен"
         elif action.action == "stop":
-            container.stop()
-            msg = f"Контейнер {container_name} остановлен"
+            container.stop(timeout=10)
+            msg = f"⏹ Контейнер **{container_name}** остановлен"
         elif action.action == "start":
             container.start()
-            msg = f"Контейнер {container_name} запущен"
+            msg = f"▶ Контейнер **{container_name}** запущен"
         else:
-            raise HTTPException(status_code=400, detail="Unknown action")
+            raise HTTPException(400, "Неизвестное действие")
 
         return {"status": "success", "message": msg}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@app.get("/api/container/{container_name}/logs")
+async def container_logs(container_name: str, lines: int = 100):
+    try:
+        container = client.containers.get(container_name)
+        logs = container.logs(tail=lines, timestamps=True).decode("utf-8", errors="ignore")
+        return {"logs": logs}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
 @app.get("/health")
 async def health():
     return {"status": "ok"}
