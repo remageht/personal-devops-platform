@@ -42,3 +42,27 @@
 ```bash
 git clone <твой-репозиторий>
 cd personal-devops-platform
+
+### 2. Запусти платформу
+```Bashdocker compose down
+docker compose build --no-cache
+docker compose up -d
+###    3. Открой в браузере
+
+Основной дашборд: http://localhost:8000
+Grafana (логин/пароль: admin / admin): http://localhost:3000
+Prometheus: http://localhost:9090
+
+📁 Структура проекта
+Bashpersonal-devops-platform/
+├── app/                    # Backend (FastAPI)
+│   ├── main.py
+│   └── requirements.txt
+├── frontend/               # Веб-интерфейс
+│   └── index.html
+├── monitoring/             # Конфигурация Prometheus
+│   └── prometheus.yml
+├── scripts/                # Bash-скрипты и утилиты
+├── docker-compose.yml
+├── Dockerfile
+└── README.md

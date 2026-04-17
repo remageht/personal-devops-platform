@@ -5,11 +5,11 @@ services:
     build: .
     container_name: devops-platform-app
     ports:
-     - "8000:8001" # Основной дашборд
-     - "8001:8001" # Prometheus метрики приложения
+      - "8000:8000"
+      - "8001:8001"
     volumes:
-      - ./app:/app
-      - ./frontend:/usr/share/nginx/html   # новая строка
+      - ./app:/app                    # для hot-reload кода Python
+      - ./frontend:/app/frontend      # для hot-reload фронтенда
     restart: unless-stopped
     networks:
       - monitoring
