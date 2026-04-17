@@ -5,6 +5,7 @@ import time
 import threading
 import docker
 from pydantic import BaseModel
+from pathlib import Path
 
 app = FastAPI(title="Personal DevOps Platform")
 
@@ -24,6 +25,11 @@ client = docker.from_env(timeout=10)
 
 class ContainerAction(BaseModel):
     action: str  # "restart", "stop", "start"
+
+class ScriptRun(BaseModel):
+    script_name: str
+
+SCRIPTS_DIR=Path("/app/scripts")
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
@@ -84,7 +90,25 @@ async def container_logs(container_name: str, lines: int = 100):
         return {"logs": logs}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
+
+@app.post("/api/run-script")
+async def run_script(script: ScriptRun):
+    script_path = SCRIPTS_DIR / script.script_name
+    if not script_path.exists():
+        raise HTTPException(404, "Скрипт не найден")
+
+    try:
+        result = subprocess.run([str(script_path)], capture_output=True, text=True, timeout=60)
+        return {
+            "status": "success",
+            "output": result.stdout + result.stderr,
+            "return_code": result.returncode
+        }
+    except subprocess.TimeoutExpired:
+        raise HTTPException(408, "Скрипт выполнялся слишком долго")
+    except Exception as e:
+        raise HTTPException(500, str(e))
+        
 @app.get("/health")
 async def health():
     return {"status": "ok"}

@@ -11,14 +11,15 @@
 
 <div class="max-w-6xl mx-auto p-8">
     <div class="flex items-center gap-4 mb-10">
-        <div class="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center text-3xl">📦</div>
+        <div class="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center text-4xl">📦</div>
         <div>
             <h1 class="text-4xl font-bold">Personal DevOps Platform</h1>
-            <p class="text-zinc-400">v0.3 • Управление инфраструктурой</p>
+            <p class="text-zinc-400">v0.4 • Быстрые инструменты</p>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Статус -->
         <div class="bg-zinc-900 rounded-3xl p-8">
             <div class="flex items-center gap-3 mb-6">
                 <i class="fas fa-heartbeat text-emerald-400 text-2xl"></i>
@@ -27,119 +28,113 @@
             <div id="status" class="space-y-4"></div>
         </div>
 
-        <div class="bg-zinc-900 rounded-3xl p-8">
+        <!-- Контейнеры -->
+        <div class="bg-zinc-900 rounded-3xl p-8 lg:col-span-2">
             <div class="flex items-center gap-3 mb-6">
                 <i class="fab fa-docker text-blue-400 text-2xl"></i>
-                <h2 class="text-2xl font-semibold">Запущенные контейнеры</h2>
+                <h2 class="text-2xl font-semibold">Контейнеры</h2>
             </div>
-            <div id="containers-list" class="space-y-4"></div>
+            <div id="containers-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
         </div>
-    </div>
 
-    <div class="mt-12 text-center text-zinc-500 text-sm">
-        Grafana → <a href="http://localhost:3000" target="_blank" class="text-violet-400 hover:underline">открыть</a> | 
-        Prometheus → <a href="http://localhost:9090" target="_blank" class="text-violet-400 hover:underline">открыть</a>
+        <!-- Быстрые инструменты -->
+        <div class="bg-zinc-900 rounded-3xl p-8 lg:col-span-3">
+            <div class="flex items-center gap-3 mb-6">
+                <i class="fas fa-tools text-amber-400 text-2xl"></i>
+                <h2 class="text-2xl font-semibold">Быстрые инструменты</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="tools-list"></div>
+        </div>
     </div>
 </div>
 
-<!-- Модальное окно для логов -->
-<div id="log-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-    <div class="bg-zinc-900 rounded-3xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
-        <div class="flex justify-between items-center p-6 border-b border-zinc-700">
-            <h3 class="text-xl font-semibold" id="modal-title">Логи контейнера</h3>
-            <button onclick="closeModal()" class="text-2xl text-zinc-400 hover:text-white">✕</button>
+<!-- Модальное окно результата скрипта -->
+<div id="result-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+    <div class="bg-zinc-900 rounded-3xl w-full max-w-3xl mx-4 max-h-[85vh] flex flex-col">
+        <div class="p-6 border-b border-zinc-700 flex justify-between items-center">
+            <h3 class="text-xl font-semibold" id="modal-title">Результат выполнения</h3>
+            <button onclick="closeModal()" class="text-3xl text-zinc-400 hover:text-white">✕</button>
         </div>
-        <pre id="log-content" class="p-6 overflow-auto font-mono text-sm bg-black/50 flex-1 text-emerald-300 whitespace-pre-wrap"></pre>
+        <pre id="result-content" class="p-6 overflow-auto font-mono text-sm bg-black/60 flex-1 text-emerald-200 whitespace-pre-wrap"></pre>
     </div>
 </div>
 
 <script>
-    let currentContainer = '';
+    const tools = [
+        {name: "system-info.sh",    label: "📋 Информация о системе",     icon: "📋"},
+        {name: "clean-docker.sh",   label: "🧹 Очистить Docker",         icon: "🧹"},
+        {name: "update-system.sh",  label: "🔄 Обновить Ubuntu",         icon: "🔄"}
+    ];
 
     async function refreshDashboard() {
+        // ... (оставляем код обновления статуса и контейнеров как раньше)
         try {
             const res = await fetch('/api/status');
             const data = await res.json();
 
+            // Статус (упрощённо)
             document.getElementById('status').innerHTML = `
-                <div class="flex justify-between bg-zinc-800 p-5 rounded-2xl">
-                    <span class="text-zinc-400">Статус</span>
-                    <span class="text-emerald-400 font-medium">● ${data.status}</span>
+                <div class="bg-zinc-800 p-5 rounded-2xl flex justify-between">
+                    <span>Статус</span>
+                    <span class="text-emerald-400">● healthy</span>
                 </div>
-                <div class="flex justify-between bg-zinc-800 p-5 rounded-2xl">
-                    <span class="text-zinc-400">Uptime</span>
+                <div class="bg-zinc-800 p-5 rounded-2xl flex justify-between">
+                    <span>Uptime</span>
                     <span class="font-mono">${data.uptime_seconds} сек</span>
                 </div>
             `;
 
-            let html = '';
+            // Контейнеры (можно оставить как было раньше)
+            let contHTML = '';
             data.containers.forEach(c => {
-                const isRunning = c.status.toLowerCase().includes('up') || c.status.toLowerCase().includes('running');
-                const color = isRunning ? 'emerald' : 'orange';
-                
-                html += `
-                    <div class="bg-zinc-800 p-6 rounded-2xl">
-                        <div class="flex justify-between">
-                            <div>
-                                <div class="font-semibold">${c.name}</div>
-                                <div class="text-xs text-zinc-500">${c.image}</div>
-                            </div>
-                            <span class="px-4 py-1 text-xs bg-${color}-900 text-${color}-300 rounded-full">${c.status}</span>
-                        </div>
-                        <div class="flex gap-2 mt-5">
-                            <button onclick="performAction('${c.name}', 'restart')" class="flex-1 bg-amber-600 hover:bg-amber-700 py-3 rounded-xl text-sm">♻ Перезапустить</button>
-                            ${isRunning ? 
-                                `<button onclick="performAction('${c.name}', 'stop')" class="flex-1 bg-red-600 hover:bg-red-700 py-3 rounded-xl text-sm">⏹ Остановить</button>` : 
-                                `<button onclick="performAction('${c.name}', 'start')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl text-sm">▶ Запустить</button>`
-                            }
-                            <button onclick="showLogs('${c.name}')" class="flex-1 bg-zinc-700 hover:bg-zinc-600 py-3 rounded-xl text-sm">📜 Логи</button>
-                        </div>
-                    </div>`;
+                contHTML += `<div class="bg-zinc-800 p-4 rounded-2xl text-sm">${c.name} — ${c.status}</div>`;
             });
-
-            document.getElementById('containers-list').innerHTML = html || '<p class="text-zinc-500 py-12 text-center">Нет контейнеров</p>';
-        } catch (e) {
-            console.error(e);
-        }
+            document.getElementById('containers-list').innerHTML = contHTML || '<p class="text-zinc-500">Нет данных</p>';
+        } catch(e) {}
     }
 
-    async function performAction(name, action) {
-        if (!confirm(`Вы уверены, что хотите ${action === 'restart' ? 'перезапустить' : action === 'stop' ? 'остановить' : 'запустить'} контейнер "${name}"?`)) return;
+    async function runTool(scriptName) {
+        if (!confirm(`Запустить скрипт "${scriptName}"?`)) return;
 
         try {
-            const res = await fetch(`/api/container/${name}/action`, {
+            const res = await fetch('/api/run-script', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({action})
+                body: JSON.stringify({script_name: scriptName})
             });
-            const result = await res.json();
-            alert(result.message);
-            refreshDashboard();
-        } catch (err) {
-            alert('Ошибка выполнения действия');
-        }
-    }
 
-    async function showLogs(name) {
-        currentContainer = name;
-        document.getElementById('modal-title').textContent = `Логи контейнера: ${name}`;
-        document.getElementById('log-modal').classList.remove('hidden');
-        
-        try {
-            const res = await fetch(`/api/container/${name}/logs?lines=200`);
             const data = await res.json();
-            document.getElementById('log-content').textContent = data.logs || 'Логов пока нет';
-        } catch (e) {
-            document.getElementById('log-content').textContent = 'Ошибка получения логов';
+            document.getElementById('modal-title').textContent = `Результат: ${scriptName}`;
+            document.getElementById('result-content').textContent = data.output || "Скрипт выполнен успешно (без вывода)";
+            document.getElementById('result-modal').classList.remove('hidden');
+        } catch (err) {
+            alert("Ошибка при запуске скрипта");
         }
     }
 
     function closeModal() {
-        document.getElementById('log-modal').classList.add('hidden');
+        document.getElementById('result-modal').classList.add('hidden');
     }
 
+    // Инициализация кнопок инструментов
+    function initTools() {
+        let html = '';
+        tools.forEach(tool => {
+            html += `
+                <button onclick="runTool('${tool.name}')" 
+                        class="group bg-zinc-800 hover:bg-zinc-700 p-6 rounded-3xl text-left transition-all hover:scale-[1.02]">
+                    <div class="text-4xl mb-4">${tool.icon}</div>
+                    <div class="font-medium text-lg">${tool.label}</div>
+                </button>`;
+        });
+        document.getElementById('tools-list').innerHTML = html;
+    }
+
+    window.onload = () => {
+        refreshDashboard();
+        initTools();
+    };
     setInterval(refreshDashboard, 5000);
-    window.onload = refreshDashboard;
 </script>
 </body>
 </html>
