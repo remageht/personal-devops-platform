@@ -1,11 +1,11 @@
 # 🚀 Personal DevOps Platform
 
-**Твоя личная DevOps-лаборатория на Ubuntu 25.10**
+**Твоя личная DevOps-лаборатория на Ubuntu **
 
 Современная веб-платформа для мониторинга, управления и автоматизации твоей домашней инфраструктуры.  
 Построена с нуля как учебный проект с реальным практическим применением.
 
-![Dashboard Preview](https://via.placeholder.com/800x400/1f2937/60a5fa?text=Personal+DevOps+Dashboard)
+
 
 ---
 
