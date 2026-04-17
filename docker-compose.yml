@@ -10,11 +10,13 @@ services:
     volumes:
       - ./app:/app                    # для hot-reload кода Python
       - ./frontend:/app/frontend      # для hot-reload фронтенда
+      - /var/run/docker.sock:/var/run/docker.sock  # для доступа к другим контейнерам
     environment:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
     networks:
       - monitoring
+    privileged: true          # доступ к docker.sock
       
   
   prometheus:
