@@ -1,0 +1,46 @@
+
+
+services:
+  app:
+    build: .
+    container_name: devops-platform-app
+    ports:
+     - "8000:8001" # Основной дашборд
+     - "8001:8001" # Prometheus метрики приложения
+    volumes:
+     - ./app:/app
+    restart: unless-stopped
+    networks:
+      - monitoring
+  
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin 
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - monitoring
+    restart: unless-stopped
+  
+networks:
+  monitoring:
+    driver: bridge
+volumes:
+  grafana_data:

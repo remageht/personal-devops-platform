@@ -1,0 +1,4 @@
+personal-devops-platform/
+__pycache__/
+*.pyc
+*.env
