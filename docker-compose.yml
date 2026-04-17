@@ -10,6 +10,8 @@ services:
     volumes:
       - ./app:/app                    # для hot-reload кода Python
       - ./frontend:/app/frontend      # для hot-reload фронтенда
+    environment:
+      - PYTHONUNBUFFERED=1
     restart: unless-stopped
     networks:
       - monitoring
