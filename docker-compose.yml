@@ -13,6 +13,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock  # для доступа к другим контейнерам
     environment:
       - PYTHONUNBUFFERED=1
+    command: python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload   # ← hot-reload
     restart: unless-stopped
     networks:
       - monitoring
