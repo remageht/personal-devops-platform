@@ -4,6 +4,7 @@ from prometheus_client import start_http_server, Counter, Gauge
 import time
 import threading
 import docker
+import subprocess
 from pydantic import BaseModel
 from pathlib import Path
 
@@ -61,6 +62,38 @@ async def api_status():
         "containers": containers
     }
 
+@app.post("/api/run-script")
+async def run_script(script: ScriptRun):
+    script_path = SCRIPTS_DIR / script.script_name
+    if not script_path.exists():
+        raise HTTPException(404, f"Скрипт {script.script_name} не найден")
+
+    try:
+        # Запускаем через bash явно — надёжнее
+        result = subprocess.run(
+            ["bash", str(script_path)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            cwd="/app/scripts"
+        )
+        
+        output = result.stdout + result.stderr
+        if result.returncode != 0:
+            output = f"❌ Ошибка (код {result.returncode}):\n{output}"
+        else:
+            output = f"✅ Выполнено успешно:\n{output}"
+
+        return {
+            "status": "success",
+            "output": output,
+            "return_code": result.returncode
+        }
+    except subprocess.TimeoutExpired:
+        raise HTTPException(408, "Скрипт выполнялся слишком долго (>60 сек)")
+    except Exception as e:
+        raise HTTPException(500, f"Ошибка запуска: {str(e)}")
+
 @app.post("/api/container/{container_name}/action")
 async def container_action(container_name: str, action: ContainerAction):
     try:
@@ -91,23 +124,7 @@ async def container_logs(container_name: str, lines: int = 100):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.post("/api/run-script")
-async def run_script(script: ScriptRun):
-    script_path = SCRIPTS_DIR / script.script_name
-    if not script_path.exists():
-        raise HTTPException(404, "Скрипт не найден")
 
-    try:
-        result = subprocess.run([str(script_path)], capture_output=True, text=True, timeout=60)
-        return {
-            "status": "success",
-            "output": result.stdout + result.stderr,
-            "return_code": result.returncode
-        }
-    except subprocess.TimeoutExpired:
-        raise HTTPException(408, "Скрипт выполнялся слишком долго")
-    except Exception as e:
-        raise HTTPException(500, str(e))
         
 @app.get("/health")
 async def health():
