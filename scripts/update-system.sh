@@ -1,4 +1,4 @@
 #!/bin/bash
-echo "=== Обновление Ubuntu ==="
-sudo apt update && sudo apt upgrade -y
-echo "Система обновлена!"
+echo "=== Обновление системы ==="
+echo "В контейнере обновление хоста не выполняется."
+echo "Выполни на хосте: sudo apt update && sudo apt upgrade -y"
