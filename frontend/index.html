@@ -10,12 +10,15 @@
 <body class="bg-zinc-950 text-zinc-100 min-h-screen">
 
 <div class="max-w-6xl mx-auto p-8">
-    <div class="flex items-center gap-4 mb-10">
+    <div class="flex items-center gap-4 mb-6 flex-wrap">
         <div class="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center text-4xl">📦</div>
-        <div>
+        <div class="flex-1">
             <h1 class="text-4xl font-bold">Personal DevOps Platform</h1>
-            <p class="text-zinc-400">v0.4 • Быстрые инструменты</p>
+            <p class="text-zinc-400">v0.5-hardened • Быстрые инструменты</p>
         </div>
+        <input id="api-token" type="password" placeholder="API token (X-API-Token)"
+            class="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2 text-sm w-64"
+            autocomplete="off" spellcheck="false" />
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -60,6 +63,33 @@
 </div>
 
 <script>
+    // hardening: экранируем всё, что пришло с backend, перед innerHTML (защита от XSS через имя/статус контейнера)
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"'`=/]/g, ch => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;',
+            "'": '&#39;', '`': '&#96;', '=': '&#61;', '/': '&#47;'
+        }[ch]));
+    }
+
+    function apiHeaders(extra) {
+        const h = Object.assign({'Content-Type': 'application/json'}, extra || {});
+        const t = (document.getElementById('api-token')?.value || localStorage.getItem('api_token') || '').trim();
+        if (t) h['X-API-Token'] = t;
+        return h;
+    }
+
+    async function apiFetch(url, opts) {
+        const res = await fetch(url, opts);
+        if (res.status === 401) throw new Error('401: задайте верный API token в поле сверху');
+        if (res.status === 429) throw new Error('429: слишком много запросов, подождите');
+        if (!res.ok) {
+            let msg = 'HTTP ' + res.status;
+            try { const j = await res.json(); if (j.detail) msg = j.detail; } catch (e) {}
+            throw new Error(msg);
+        }
+        return res.json();
+    }
+
     const tools = [
         {name: "system-info.sh",    label: "📋 Информация о системе",     icon: "📋"},
         {name: "clean-docker.sh",   label: "🧹 Очистить Docker",         icon: "🧹"},
@@ -69,46 +99,49 @@
     async function refreshDashboard() {
         // ... (оставляем код обновления статуса и контейнеров как раньше)
         try {
-            const res = await fetch('/api/status');
-            const data = await res.json();
+            const data = await apiFetch('/api/status');
 
             // Статус (упрощённо)
             document.getElementById('status').innerHTML = `
                 <div class="bg-zinc-800 p-5 rounded-2xl flex justify-between">
                     <span>Статус</span>
-                    <span class="text-emerald-400">● healthy</span>
+                    <span class="text-emerald-400">● ${escapeHtml(data.status)}</span>
                 </div>
                 <div class="bg-zinc-800 p-5 rounded-2xl flex justify-between">
                     <span>Uptime</span>
-                    <span class="font-mono">${data.uptime_seconds} сек</span>
+                    <span class="font-mono">${escapeHtml(data.uptime_seconds)} сек</span>
                 </div>
             `;
 
             // Контейнеры (можно оставить как было раньше)
             let contHTML = '';
-            data.containers.forEach(c => {
-                contHTML += `<div class="bg-zinc-800 p-4 rounded-2xl text-sm">${c.name} — ${c.status}</div>`;
+            (data.containers || []).forEach(c => {
+                contHTML += `<div class="bg-zinc-800 p-4 rounded-2xl text-sm">${escapeHtml(c.name)} — ${escapeHtml(c.status)} <span class="text-zinc-500">${escapeHtml(c.image || '')}</span></div>`;
             });
             document.getElementById('containers-list').innerHTML = contHTML || '<p class="text-zinc-500">Нет данных</p>';
-        } catch(e) {}
+        } catch(e) { console.warn(e.message); }
     }
 
     async function runTool(scriptName) {
-        if (!confirm(`Запустить скрипт "${scriptName}"?`)) return;
+        if (scriptName === 'clean-docker.sh' && !confirm(`⚠️ "${scriptName}" удалит неиспользуемые образы/контейнеры. Точно запустить?`)) return;
+        else if (scriptName !== 'clean-docker.sh' && !confirm(`Запустить скрипт "${scriptName}"?`)) return;
+
+        // сохраняем токен для следующих запросов
+        const t = document.getElementById('api-token')?.value?.trim();
+        if (t) localStorage.setItem('api_token', t);
 
         try {
-            const res = await fetch('/api/run-script', {
+            const data = await apiFetch('/api/run-script', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: apiHeaders(),
                 body: JSON.stringify({script_name: scriptName})
             });
 
-            const data = await res.json();
             document.getElementById('modal-title').textContent = `Результат: ${scriptName}`;
             document.getElementById('result-content').textContent = data.output || "Скрипт выполнен успешно (без вывода)";
             document.getElementById('result-modal').classList.remove('hidden');
         } catch (err) {
-            alert("Ошибка при запуске скрипта");
+            alert("Ошибка при запуске скрипта: " + err.message);
         }
     }
 
@@ -121,16 +154,22 @@
         let html = '';
         tools.forEach(tool => {
             html += `
-                <button onclick="runTool('${tool.name}')" 
+                <button onclick="runTool('${escapeHtml(tool.name)}')"
                         class="group bg-zinc-800 hover:bg-zinc-700 p-6 rounded-3xl text-left transition-all hover:scale-[1.02]">
-                    <div class="text-4xl mb-4">${tool.icon}</div>
-                    <div class="font-medium text-lg">${tool.label}</div>
+                    <div class="text-4xl mb-4">${escapeHtml(tool.icon)}</div>
+                    <div class="font-medium text-lg">${escapeHtml(tool.label)}</div>
                 </button>`;
         });
         document.getElementById('tools-list').innerHTML = html;
     }
 
     window.onload = () => {
+        const saved = localStorage.getItem('api_token');
+        if (saved) document.getElementById('api-token').value = saved;
+        document.getElementById('api-token')?.addEventListener('change', e => {
+            const v = e.target.value.trim();
+            if (v) localStorage.setItem('api_token', v); else localStorage.removeItem('api_token');
+        });
         refreshDashboard();
         initTools();
     };
