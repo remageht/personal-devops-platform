@@ -4,11 +4,10 @@ services:
     container_name: devops-platform-app
     ports:
       - "127.0.0.1:8000:8000"
-    # Метрики только внутри сети monitoring, наружу не торчат
     expose:
       - "8000"
     volumes:
-      - ./app:/app/app
+      - ./app:/app/app:ro
       - ./frontend:/app/frontend:ro
       - ./scripts:/app/scripts:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -19,19 +18,13 @@ services:
       - DOCKER_HOST=unix:///var/run/docker.sock
       - SCRIPTS_DIR=/app/scripts
       - FRONTEND_FILE=/app/frontend/index.html
-    # НИКАКОГО privileged: true. Если нужен доступ к sock без root —
-    # раскомментируйте group_add с GID группы docker на хосте (см. README).
-    # group_add:
-    #   - "988"
     read_only: true
     tmpfs:
       - /tmp
     cap_drop:
       - ALL
-    cap_add:
-      - CHOWN
-      - SETGID
-      - SETUID
+    security_opt:
+      - no-new-privileges:true
     deploy:
       resources:
         limits:
@@ -61,6 +54,13 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=15d'
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    security_opt:
+      - no-new-privileges:true
     networks:
       - monitoring
     restart: unless-stopped
@@ -69,6 +69,9 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    depends_on:
+      - cadvisor
+      - node-exporter
 
   grafana:
     image: grafana/grafana:11.3.0
@@ -78,12 +81,19 @@ services:
     env_file:
       - .env
     environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?Set GRAFANA_PASSWORD in .env}
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    security_opt:
+      - no-new-privileges:true
     networks:
       - monitoring
     restart: unless-stopped
@@ -91,20 +101,55 @@ services:
       prometheus:
         condition: service_started
 
-  # Раскомментируйте для полного мониторинга (README обещал cAdvisor)
-  # cadvisor:
-  #   image: gcr.io/cadvisor/cadvisor:v0.49.1
-  #   container_name: cadvisor
-  #   ports:
-  #     - "127.0.0.1:8080:8080"
-  #   volumes:
-  #     - /:/rootfs:ro
-  #     - /var/run:/var/run:ro
-  #     - /sys:/sys:ro
-  #     - /var/lib/docker/:/var/lib/docker:ro
-  #   networks:
-  #     - monitoring
-  #   restart: unless-stopped
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: cadvisor
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - monitoring
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: node-exporter
+    ports:
+      - "127.0.0.1:9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - monitoring
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.3"
+          memory: 128M
 
 networks:
   monitoring:
