@@ -1,55 +1,115 @@
-
-
 services:
   app:
     build: .
     container_name: devops-platform-app
     ports:
-      - "8000:8000"
-      - "8001:8001"
+      - "127.0.0.1:8000:8000"
+    # Метрики только внутри сети monitoring, наружу не торчат
+    expose:
+      - "8000"
     volumes:
-      - ./app:/app                    # для hot-reload кода Python
-      - ./frontend:/app/frontend      # для hot-reload фронтенда
+      - ./app:/app/app
+      - ./frontend:/app/frontend:ro
       - ./scripts:/app/scripts:ro
-      - /var/run/docker.sock:/var/run/docker.sock  # для доступа к другим контейнерам  
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    env_file:
+      - .env
     environment:
       - PYTHONUNBUFFERED=1
       - DOCKER_HOST=unix:///var/run/docker.sock
-    command: python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload   # ← hot-reload
+      - SCRIPTS_DIR=/app/scripts
+      - FRONTEND_FILE=/app/frontend/index.html
+    # НИКАКОГО privileged: true. Если нужен доступ к sock без root —
+    # раскомментируйте group_add с GID группы docker на хосте (см. README).
+    # group_add:
+    #   - "988"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     restart: unless-stopped
     networks:
       - monitoring
-    privileged: true          # доступ к docker.sock
-      
-  
+    depends_on:
+      prometheus:
+        condition: service_started
+
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.1.0
     container_name: prometheus
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
     networks:
       - monitoring
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9090/-/healthy"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.3.0
     container_name: grafana
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - .env
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin 
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?Set GRAFANA_PASSWORD in .env}
+      - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
     networks:
       - monitoring
     restart: unless-stopped
-  
+    depends_on:
+      prometheus:
+        condition: service_started
+
+  # Раскомментируйте для полного мониторинга (README обещал cAdvisor)
+  # cadvisor:
+  #   image: gcr.io/cadvisor/cadvisor:v0.49.1
+  #   container_name: cadvisor
+  #   ports:
+  #     - "127.0.0.1:8080:8080"
+  #   volumes:
+  #     - /:/rootfs:ro
+  #     - /var/run:/var/run:ro
+  #     - /sys:/sys:ro
+  #     - /var/lib/docker/:/var/lib/docker:ro
+  #   networks:
+  #     - monitoring
+  #   restart: unless-stopped
+
 networks:
   monitoring:
     driver: bridge
+
 volumes:
   grafana_data:
+  prometheus_data:

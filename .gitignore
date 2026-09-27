@@ -1,4 +1,11 @@
-personal-devops-platform/
 __pycache__/
 *.pyc
-*.env
+*.pyo
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+personal-devops-platform/
+*.log
+.grafana/
