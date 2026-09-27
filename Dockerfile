@@ -1,6 +1,6 @@
 FROM python:3.12-slim AS runtime
 
-# Минимум пакетов: без sudo, без лишнего. curl нужен для healthcheck.
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     procps \

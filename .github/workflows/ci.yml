@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -53,6 +55,6 @@ jobs:
       - name: Trivy scan (HIGH,CRITICAL fail)
         uses: aquasecurity/trivy-action@0.24.0
         with:
-          image-ref: personal-devops-platform-app
+          image-ref: personal-devops-platform-app:latest
           severity: HIGH,CRITICAL
           exit-code: "1"

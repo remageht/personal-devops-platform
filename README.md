@@ -129,8 +129,8 @@ docker compose ps
    Ответ:
    ```json
    {
-     "access_token": "eyJhbGciOiJIUzI1Ni...",
-     "refresh_token": "eyJhbGciOiJIUzI1Ni...",
+     "access_token": "<ACCESS_TOKEN_JWT>",
+     "refresh_token": "<REFRESH_TOKEN_JWT>",
      "token_type": "bearer",
      "role": "admin"
    }

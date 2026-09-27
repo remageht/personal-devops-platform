@@ -30,6 +30,7 @@ import logging
 import os
 import re
 import secrets
+import shutil
 import subprocess
 import time
 from collections import defaultdict, deque
@@ -557,6 +558,16 @@ async def list_scripts():
     return {"scripts": sorted(ALLOWED_SCRIPTS)}
 
 
+def _get_bash() -> str:
+    found = shutil.which("bash")
+    if found:
+        return found
+    for win_path in [r"C:\Program Files\Git\bin\bash.exe", r"C:\Program Files\Git\usr\bin\bash.exe"]:
+        if os.path.isfile(win_path):
+            return win_path
+    return "bash"
+
+
 @app.post("/api/run-script", dependencies=[Depends(rate_limit), Depends(require_admin)])
 async def run_script(script: ScriptRun):
     script_path = _resolve_script(script.script_name)
@@ -568,7 +579,7 @@ async def run_script(script: ScriptRun):
     try:
         def _run():
             return subprocess.run(
-                ["bash", str(script_path)],
+                [_get_bash(), str(script_path)],
                 capture_output=True,
                 text=True,
                 timeout=SCRIPT_TIMEOUT,

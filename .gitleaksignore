@@ -1,0 +1,4 @@
+# Gitleaks ignore file for documented mock placeholders in historical commits
+0b6ef6747bc92aedb33f518a2d08314f01ecf09f:README.md:generic-api-key:132
+0b6ef6747bc92aedb33f518a2d08314f01ecf09f:README.md:generic-api-key:133
+0b6ef6747bc92aedb33f518a2d08314f01ecf09f:app/test_main.py:generic-api-key:422

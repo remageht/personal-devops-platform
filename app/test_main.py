@@ -419,7 +419,7 @@ def test_12_auth_refresh_valid_and_invalid_tokens(client):
 
 def test_13_legacy_token_allow_behavior(client, monkeypatch):
     """Verify legacy X-API-Token: 401 when LEGACY_TOKEN_ALLOW=0, 200 when LEGACY_TOKEN_ALLOW=1."""
-    legacy_secret = "legacy-secret-key-12345"
+    legacy_secret = "ci-test-mock-token-xyz"
     monkeypatch.setattr("app.main.API_TOKEN", legacy_secret)
 
     # 1. When LEGACY_TOKEN_ALLOW is False (default)

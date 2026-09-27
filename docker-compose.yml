@@ -1,6 +1,7 @@
 services:
   app:
     build: .
+    image: personal-devops-platform-app:latest
     container_name: devops-platform-app
     ports:
       - "127.0.0.1:8000:8000"
