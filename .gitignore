@@ -1,11 +1,31 @@
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
+
+# Environment configuration
 .env
 .env.*
 !.env.example
+
+# Virtual environments
 .venv/
 venv/
-personal-devops-platform/
+ENV/
+
+# Application and service logs
 *.log
+logs/
+
+# Persistent data and monitoring storage
+data/
+prometheus_data/
+prometheus_data
+grafana_data/
+grafana_data
 .grafana/
+
+# Platform and OS artifacts
+personal-devops-platform/
+.DS_Store
+Thumbs.db

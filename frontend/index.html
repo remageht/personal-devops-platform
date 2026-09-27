@@ -10,60 +10,158 @@
 <body class="bg-zinc-950 text-zinc-100 min-h-screen">
 
 <div class="max-w-6xl mx-auto p-8">
-    <div class="flex items-center gap-4 mb-6 flex-wrap">
-        <div class="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center text-4xl">📦</div>
-        <div class="flex-1">
-            <h1 class="text-4xl font-bold">Personal DevOps Platform</h1>
-            <p class="text-zinc-400">v0.5-hardened • Быстрые инструменты</p>
+    <!-- Header -->
+    <div class="flex items-center justify-between gap-4 mb-6 flex-wrap">
+        <div class="flex items-center gap-4">
+            <div class="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center text-4xl shadow-lg shadow-emerald-900/30">📦</div>
+            <div>
+                <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">Personal DevOps Platform</h1>
+                <p class="text-zinc-400 text-sm">v0.6-hardened • JWT Auth • RBAC • Rate Limiting</p>
+            </div>
         </div>
-        <input id="api-token" type="password" placeholder="API token (X-API-Token)"
-            class="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2 text-sm w-64"
-            autocomplete="off" spellcheck="false" />
+
+        <!-- Auth Controls in Header -->
+        <div class="flex items-center gap-3">
+            <!-- Authenticated Profile Badge -->
+            <div id="user-info-bar" class="hidden flex items-center gap-3">
+                <div class="flex items-center gap-2 bg-zinc-900 border border-emerald-700/60 rounded-xl px-3 py-2 text-sm">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="user-display" class="font-medium text-emerald-300">admin</span>
+                    <span id="role-display" class="text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-md font-mono">admin</span>
+                </div>
+                <button onclick="handleLogout()" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-300 hover:text-white transition flex items-center gap-2">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Выйти</span>
+                </button>
+            </div>
+
+            <!-- Unauthenticated Login Button -->
+            <div id="login-btn-bar" class="flex items-center gap-2">
+                <button onclick="openLoginModal()" class="bg-emerald-600 hover:bg-emerald-500 rounded-xl px-4 py-2 text-sm font-medium text-white transition flex items-center gap-2 shadow-lg shadow-emerald-900/40">
+                    <i class="fas fa-lock"></i>
+                    <span>Войти в систему</span>
+                </button>
+                <button onclick="toggleLegacyPrompt()" title="Настроить Legacy X-API-Token" class="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition">
+                    <i class="fas fa-key"></i>
+                </button>
+            </div>
+        </div>
     </div>
 
+    <!-- Legacy Token Notice / Input (Collapsible) -->
+    <div id="legacy-bar" class="hidden mb-6 bg-zinc-900/90 border border-amber-900/60 rounded-2xl p-4 flex items-center justify-between gap-4 flex-wrap text-sm">
+        <div class="flex items-center gap-2 text-amber-300">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>Legacy режим: X-API-Token поддерживается только если на сервере включен <code class="bg-black/50 px-1.5 py-0.5 rounded text-amber-200">LEGACY_TOKEN_ALLOW=1</code></span>
+        </div>
+        <div class="flex items-center gap-2">
+            <input id="api-token" type="password" placeholder="Введите X-API-Token..."
+                class="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-1.5 text-xs w-64 text-zinc-200 focus:outline-none focus:border-amber-500"
+                autocomplete="off" spellcheck="false" />
+            <button onclick="saveLegacyToken()" class="bg-amber-600/30 hover:bg-amber-600/50 text-amber-200 border border-amber-600/50 rounded-xl px-3 py-1.5 text-xs transition">
+                Применить
+            </button>
+            <button onclick="toggleLegacyPrompt()" class="text-zinc-400 hover:text-white text-xs px-2">✕</button>
+        </div>
+    </div>
+
+    <!-- Main Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Статус -->
-        <div class="bg-zinc-900 rounded-3xl p-8">
+        <!-- Status Card -->
+        <div class="bg-zinc-900 rounded-3xl p-6 border border-zinc-800/80 shadow-xl">
             <div class="flex items-center gap-3 mb-6">
                 <i class="fas fa-heartbeat text-emerald-400 text-2xl"></i>
-                <h2 class="text-2xl font-semibold">Статус приложения</h2>
+                <h2 class="text-2xl font-semibold">Статус системы</h2>
             </div>
-            <div id="status" class="space-y-4"></div>
+            <div id="status" class="space-y-4">
+                <p class="text-zinc-500 text-sm">Загрузка данных...</p>
+            </div>
         </div>
 
-        <!-- Контейнеры -->
-        <div class="bg-zinc-900 rounded-3xl p-8 lg:col-span-2">
-            <div class="flex items-center gap-3 mb-6">
-                <i class="fab fa-docker text-blue-400 text-2xl"></i>
-                <h2 class="text-2xl font-semibold">Контейнеры</h2>
+        <!-- Containers Card -->
+        <div class="bg-zinc-900 rounded-3xl p-6 border border-zinc-800/80 shadow-xl lg:col-span-2">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-3">
+                    <i class="fab fa-docker text-blue-400 text-2xl"></i>
+                    <h2 class="text-2xl font-semibold">Контейнеры</h2>
+                </div>
+                <button onclick="refreshDashboard()" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-xl transition flex items-center gap-1.5">
+                    <i class="fas fa-sync-alt"></i>
+                    <span>Обновить</span>
+                </button>
             </div>
-            <div id="containers-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            <div id="containers-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <p class="text-zinc-500 text-sm">Загрузка контейнеров...</p>
+            </div>
         </div>
 
-        <!-- Быстрые инструменты -->
-        <div class="bg-zinc-900 rounded-3xl p-8 lg:col-span-3">
+        <!-- Quick Tools Card -->
+        <div class="bg-zinc-900 rounded-3xl p-6 border border-zinc-800/80 shadow-xl lg:col-span-3">
             <div class="flex items-center gap-3 mb-6">
                 <i class="fas fa-tools text-amber-400 text-2xl"></i>
-                <h2 class="text-2xl font-semibold">Быстрые инструменты</h2>
+                <div>
+                    <h2 class="text-2xl font-semibold">Быстрые инструменты</h2>
+                    <p class="text-xs text-zinc-500">Запуск скриптов администрирования (требуется роль admin)</p>
+                </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="tools-list"></div>
         </div>
     </div>
 </div>
 
-<!-- Модальное окно результата скрипта -->
-<div id="result-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-    <div class="bg-zinc-900 rounded-3xl w-full max-w-3xl mx-4 max-h-[85vh] flex flex-col">
-        <div class="p-6 border-b border-zinc-700 flex justify-between items-center">
-            <h3 class="text-xl font-semibold" id="modal-title">Результат выполнения</h3>
-            <button onclick="closeModal()" class="text-3xl text-zinc-400 hover:text-white">✕</button>
+<!-- Modal: Login -->
+<div id="login-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-md p-8 shadow-2xl">
+        <div class="flex justify-between items-center mb-6">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-emerald-600/20 text-emerald-400 rounded-xl flex items-center justify-center text-xl">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h3 class="text-xl font-bold">Вход в систему</h3>
+            </div>
+            <button onclick="closeLoginModal()" class="text-zinc-500 hover:text-white text-2xl leading-none">&times;</button>
         </div>
-        <pre id="result-content" class="p-6 overflow-auto font-mono text-sm bg-black/60 flex-1 text-emerald-200 whitespace-pre-wrap"></pre>
+
+        <form id="login-form" onsubmit="submitLogin(event)" class="space-y-4">
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-zinc-400 mb-1 font-medium">Имя пользователя</label>
+                <input id="login-username" type="text" required placeholder="admin"
+                    class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500 transition" />
+            </div>
+
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-zinc-400 mb-1 font-medium">Пароль</label>
+                <input id="login-password" type="password" required placeholder="••••••••"
+                    class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500 transition" />
+            </div>
+
+            <div id="login-error" class="hidden p-3 bg-rose-950/60 border border-rose-800/80 rounded-xl text-rose-300 text-sm"></div>
+
+            <button type="submit" id="login-submit-btn"
+                class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/40">
+                <span>Войти</span>
+                <i class="fas fa-arrow-right text-xs"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Script / Logs Result -->
+<div id="result-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl">
+        <div class="p-6 border-b border-zinc-800 flex justify-between items-center">
+            <h3 class="text-lg font-semibold flex items-center gap-2" id="modal-title">
+                <i class="fas fa-terminal text-emerald-400"></i>
+                <span>Результат</span>
+            </h3>
+            <button onclick="closeModal()" class="text-2xl text-zinc-400 hover:text-white leading-none">&times;</button>
+        </div>
+        <pre id="result-content" class="p-6 overflow-auto font-mono text-xs sm:text-sm bg-black/60 flex-1 text-emerald-300 whitespace-pre-wrap selection:bg-emerald-900"></pre>
     </div>
 </div>
 
 <script>
-    // hardening: экранируем всё, что пришло с backend, перед innerHTML (защита от XSS через имя/статус контейнера)
+    // XSS protection
     function escapeHtml(s) {
         return String(s ?? '').replace(/[&<>"'`=/]/g, ch => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;',
@@ -71,23 +169,216 @@
         }[ch]));
     }
 
-    function apiHeaders(extra) {
-        const h = Object.assign({'Content-Type': 'application/json'}, extra || {});
-        const t = (document.getElementById('api-token')?.value || localStorage.getItem('api_token') || '').trim();
-        if (t) h['X-API-Token'] = t;
+    // Auth State in localStorage
+    function getAccessToken() { return localStorage.getItem('access_token') || ''; }
+    function getRefreshToken() { return localStorage.getItem('refresh_token') || ''; }
+    function getLegacyToken() { return localStorage.getItem('api_token') || ''; }
+
+    function updateAuthUI() {
+        const token = getAccessToken();
+        const legToken = getLegacyToken();
+        const userInfoBar = document.getElementById('user-info-bar');
+        const loginBtnBar = document.getElementById('login-btn-bar');
+        const userDisplay = document.getElementById('user-display');
+        const roleDisplay = document.getElementById('role-display');
+
+        if (token) {
+            userInfoBar.classList.remove('hidden');
+            loginBtnBar.classList.add('hidden');
+            userDisplay.textContent = localStorage.getItem('auth_username') || 'admin';
+            roleDisplay.textContent = localStorage.getItem('auth_role') || 'admin';
+        } else if (legToken) {
+            userInfoBar.classList.remove('hidden');
+            loginBtnBar.classList.add('hidden');
+            userDisplay.textContent = 'legacy-token';
+            roleDisplay.textContent = 'legacy';
+        } else {
+            userInfoBar.classList.add('hidden');
+            loginBtnBar.classList.remove('hidden');
+        }
+    }
+
+    function apiHeaders(extra = {}) {
+        const h = Object.assign({'Content-Type': 'application/json'}, extra);
+        const jwt = getAccessToken();
+        if (jwt) {
+            h['Authorization'] = `Bearer ${jwt}`;
+        } else {
+            const leg = getLegacyToken();
+            if (leg) {
+                h['X-API-Token'] = leg;
+            }
+        }
         return h;
     }
 
-    async function apiFetch(url, opts) {
+    let isRefreshing = false;
+    let refreshPromise = null;
+
+    async function refreshAccessToken() {
+        const rf = getRefreshToken();
+        if (!rf) return null;
+        if (isRefreshing) return refreshPromise;
+
+        isRefreshing = true;
+        refreshPromise = (async () => {
+            try {
+                const res = await fetch('/auth/refresh', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({refresh_token: rf})
+                });
+                if (!res.ok) {
+                    handleLogout(false);
+                    return null;
+                }
+                const data = await res.json();
+                if (data.access_token) {
+                    localStorage.setItem('access_token', data.access_token);
+                    return data.access_token;
+                }
+                return null;
+            } catch (err) {
+                console.error('Auto-refresh error:', err);
+                return null;
+            } finally {
+                isRefreshing = false;
+                refreshPromise = null;
+            }
+        })();
+        return refreshPromise;
+    }
+
+    async function apiFetch(url, opts = {}, isRetry = false) {
+        opts.headers = apiHeaders(opts.headers);
         const res = await fetch(url, opts);
-        if (res.status === 401) throw new Error('401: задайте верный API token в поле сверху');
-        if (res.status === 429) throw new Error('429: слишком много запросов, подождите');
+
+        // Auto-refresh access token on 401 if refresh_token is present
+        if (res.status === 401 && !isRetry && getRefreshToken()) {
+            const newTok = await refreshAccessToken();
+            if (newTok) {
+                return apiFetch(url, opts, true);
+            }
+        }
+
+        if (res.status === 401) {
+            openLoginModal('Сессия истекла или требуется авторизация');
+            throw new Error('401: Требуется авторизация');
+        }
+        if (res.status === 403) {
+            let msg = '403: Доступ запрещен (требуются права администратора)';
+            try {
+                const j = await res.json();
+                if (j.detail) msg = j.detail;
+            } catch (e) {}
+            throw new Error(msg);
+        }
+        if (res.status === 429) {
+            const retryAfter = res.headers.get('Retry-After') || '60';
+            throw new Error(`429: Слишком много запросов. Подождите ${retryAfter} сек.`);
+        }
         if (!res.ok) {
             let msg = 'HTTP ' + res.status;
-            try { const j = await res.json(); if (j.detail) msg = j.detail; } catch (e) {}
+            try {
+                const j = await res.json();
+                if (j.detail) msg = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail);
+            } catch (e) {}
             throw new Error(msg);
         }
         return res.json();
+    }
+
+    async function submitLogin(e) {
+        e.preventDefault();
+        const u = document.getElementById('login-username').value.trim();
+        const p = document.getElementById('login-password').value;
+        const errEl = document.getElementById('login-error');
+        errEl.classList.add('hidden');
+        errEl.textContent = '';
+
+        try {
+            const res = await fetch('/auth/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: u, password: p})
+            });
+            if (!res.ok) {
+                let msg = 'Неверное имя пользователя или пароль';
+                try {
+                    const j = await res.json();
+                    if (j.detail) msg = j.detail;
+                } catch(ex) {}
+                errEl.textContent = msg;
+                errEl.classList.remove('hidden');
+                return;
+            }
+            const data = await res.json();
+            localStorage.setItem('access_token', data.access_token);
+            localStorage.setItem('refresh_token', data.refresh_token);
+            localStorage.setItem('auth_username', u);
+            localStorage.setItem('auth_role', data.role || 'admin');
+            localStorage.removeItem('api_token'); // Очищаем legacy при JWT
+
+            closeLoginModal();
+            updateAuthUI();
+            refreshDashboard();
+        } catch (err) {
+            errEl.textContent = 'Ошибка сети: ' + err.message;
+            errEl.classList.remove('hidden');
+        }
+    }
+
+    function handleLogout(promptLogin = true) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('auth_username');
+        localStorage.removeItem('auth_role');
+        localStorage.removeItem('api_token');
+        updateAuthUI();
+        document.getElementById('status').innerHTML = '<p class="text-zinc-500 text-sm">Авторизуйтесь для просмотра статуса</p>';
+        document.getElementById('containers-list').innerHTML = '<p class="text-zinc-500 text-sm">Авторизуйтесь для просмотра контейнеров</p>';
+        if (promptLogin) openLoginModal();
+    }
+
+    function openLoginModal(msg = '') {
+        document.getElementById('login-modal').classList.remove('hidden');
+        const errEl = document.getElementById('login-error');
+        if (msg) {
+            errEl.textContent = msg;
+            errEl.classList.remove('hidden');
+        } else {
+            errEl.classList.add('hidden');
+            errEl.textContent = '';
+        }
+        document.getElementById('login-username').focus();
+    }
+
+    function closeLoginModal() {
+        document.getElementById('login-modal').classList.add('hidden');
+    }
+
+    function toggleLegacyPrompt() {
+        const el = document.getElementById('legacy-bar');
+        el.classList.toggle('hidden');
+        if (!el.classList.contains('hidden')) {
+            const saved = getLegacyToken();
+            if (saved) document.getElementById('api-token').value = saved;
+        }
+    }
+
+    function saveLegacyToken() {
+        const val = document.getElementById('api-token').value.trim();
+        if (val) {
+            localStorage.setItem('api_token', val);
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            updateAuthUI();
+            refreshDashboard();
+            alert('Legacy X-API-Token сохранен');
+        } else {
+            localStorage.removeItem('api_token');
+            updateAuthUI();
+        }
     }
 
     const tools = [
@@ -97,51 +388,99 @@
     ];
 
     async function refreshDashboard() {
-        // ... (оставляем код обновления статуса и контейнеров как раньше)
         try {
             const data = await apiFetch('/api/status');
 
-            // Статус (упрощённо)
             document.getElementById('status').innerHTML = `
-                <div class="bg-zinc-800 p-5 rounded-2xl flex justify-between">
-                    <span>Статус</span>
-                    <span class="text-emerald-400">● ${escapeHtml(data.status)}</span>
+                <div class="bg-zinc-800/80 border border-zinc-700/50 p-4 rounded-2xl flex justify-between items-center">
+                    <span class="text-zinc-400 text-sm">Статус</span>
+                    <span class="text-emerald-400 font-medium">● ${escapeHtml(data.status)}</span>
                 </div>
-                <div class="bg-zinc-800 p-5 rounded-2xl flex justify-between">
-                    <span>Uptime</span>
-                    <span class="font-mono">${escapeHtml(data.uptime_seconds)} сек</span>
+                <div class="bg-zinc-800/80 border border-zinc-700/50 p-4 rounded-2xl flex justify-between items-center">
+                    <span class="text-zinc-400 text-sm">Uptime</span>
+                    <span class="font-mono text-zinc-200 text-sm">${escapeHtml(data.uptime_seconds)} сек</span>
                 </div>
             `;
 
-            // Контейнеры (можно оставить как было раньше)
             let contHTML = '';
             (data.containers || []).forEach(c => {
-                contHTML += `<div class="bg-zinc-800 p-4 rounded-2xl text-sm">${escapeHtml(c.name)} — ${escapeHtml(c.status)} <span class="text-zinc-500">${escapeHtml(c.image || '')}</span></div>`;
+                const isRunning = c.status === 'running';
+                const statusBadge = isRunning
+                    ? '<span class="text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full">running</span>'
+                    : `<span class="text-xs bg-zinc-800 text-zinc-400 border border-zinc-700 px-2 py-0.5 rounded-full">${escapeHtml(c.status)}</span>`;
+
+                contHTML += `
+                    <div class="bg-zinc-800/70 border border-zinc-700/50 p-4 rounded-2xl flex flex-col justify-between gap-3">
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <div class="font-medium text-zinc-100">${escapeHtml(c.name)}</div>
+                                <div class="text-xs text-zinc-500 truncate max-w-[200px]" title="${escapeHtml(c.image || '')}">${escapeHtml(c.image || 'unknown')}</div>
+                            </div>
+                            ${statusBadge}
+                        </div>
+                        <div class="flex items-center gap-2 pt-2 border-t border-zinc-700/40">
+                            <button onclick="containerAction('${escapeHtml(c.name)}', 'restart')" class="text-xs bg-zinc-900 hover:bg-zinc-700 text-zinc-300 px-2.5 py-1.5 rounded-lg transition" title="Перезапуск">
+                                <i class="fas fa-redo-alt mr-1"></i> Restart
+                            </button>
+                            ${isRunning ? `
+                            <button onclick="containerAction('${escapeHtml(c.name)}', 'stop')" class="text-xs bg-zinc-900 hover:bg-zinc-700 text-rose-300 px-2.5 py-1.5 rounded-lg transition" title="Остановить">
+                                <i class="fas fa-stop mr-1"></i> Stop
+                            </button>` : `
+                            <button onclick="containerAction('${escapeHtml(c.name)}', 'start')" class="text-xs bg-zinc-900 hover:bg-zinc-700 text-emerald-300 px-2.5 py-1.5 rounded-lg transition" title="Запустить">
+                                <i class="fas fa-play mr-1"></i> Start
+                            </button>`}
+                            <button onclick="showContainerLogs('${escapeHtml(c.name)}')" class="text-xs bg-zinc-900 hover:bg-zinc-700 text-blue-300 px-2.5 py-1.5 rounded-lg transition ml-auto" title="Логи">
+                                <i class="fas fa-file-alt mr-1"></i> Logs
+                            </button>
+                        </div>
+                    </div>`;
             });
-            document.getElementById('containers-list').innerHTML = contHTML || '<p class="text-zinc-500">Нет данных</p>';
-        } catch(e) { console.warn(e.message); }
+            document.getElementById('containers-list').innerHTML = contHTML || '<p class="text-zinc-500 text-sm">Контейнеры не найдены</p>';
+        } catch (e) {
+            console.warn(e.message);
+        }
+    }
+
+    async function containerAction(containerName, action) {
+        if (action === 'stop' && !confirm(`⚠️ Остановить контейнер "${containerName}"?`)) return;
+        try {
+            const data = await apiFetch(`/api/container/${encodeURIComponent(containerName)}/action`, {
+                method: 'POST',
+                body: JSON.stringify({action: action})
+            });
+            alert(data.message || 'Действие выполнено');
+            refreshDashboard();
+        } catch (err) {
+            alert('Ошибка: ' + err.message);
+        }
+    }
+
+    async function showContainerLogs(containerName) {
+        try {
+            const data = await apiFetch(`/api/container/${encodeURIComponent(containerName)}/logs?lines=150`);
+            document.getElementById('modal-title').innerHTML = `<i class="fas fa-file-alt text-blue-400"></i> Логи: ${escapeHtml(containerName)}`;
+            document.getElementById('result-content').textContent = data.logs || "(Логи пусты)";
+            document.getElementById('result-modal').classList.remove('hidden');
+        } catch (err) {
+            alert('Не удалось получить логи: ' + err.message);
+        }
     }
 
     async function runTool(scriptName) {
-        if (scriptName === 'clean-docker.sh' && !confirm(`⚠️ "${scriptName}" удалит неиспользуемые образы/контейнеры. Точно запустить?`)) return;
+        if (scriptName === 'clean-docker.sh' && !confirm(`⚠️ "${scriptName}" удалит неиспользуемые контейнеры/образы (требует ALLOW_PRUNE=1). Продолжить?`)) return;
         else if (scriptName !== 'clean-docker.sh' && !confirm(`Запустить скрипт "${scriptName}"?`)) return;
-
-        // сохраняем токен для следующих запросов
-        const t = document.getElementById('api-token')?.value?.trim();
-        if (t) localStorage.setItem('api_token', t);
 
         try {
             const data = await apiFetch('/api/run-script', {
                 method: 'POST',
-                headers: apiHeaders(),
                 body: JSON.stringify({script_name: scriptName})
             });
 
-            document.getElementById('modal-title').textContent = `Результат: ${scriptName}`;
-            document.getElementById('result-content').textContent = data.output || "Скрипт выполнен успешно (без вывода)";
+            document.getElementById('modal-title').innerHTML = `<i class="fas fa-terminal text-emerald-400"></i> Результат: ${escapeHtml(scriptName)}`;
+            document.getElementById('result-content').textContent = data.output || "Скрипт выполнен без вывода";
             document.getElementById('result-modal').classList.remove('hidden');
         } catch (err) {
-            alert("Ошибка при запуске скрипта: " + err.message);
+            alert("Ошибка выполнения скрипта: " + err.message);
         }
     }
 
@@ -149,30 +488,26 @@
         document.getElementById('result-modal').classList.add('hidden');
     }
 
-    // Инициализация кнопок инструментов
     function initTools() {
         let html = '';
         tools.forEach(tool => {
             html += `
                 <button onclick="runTool('${escapeHtml(tool.name)}')"
-                        class="group bg-zinc-800 hover:bg-zinc-700 p-6 rounded-3xl text-left transition-all hover:scale-[1.02]">
-                    <div class="text-4xl mb-4">${escapeHtml(tool.icon)}</div>
-                    <div class="font-medium text-lg">${escapeHtml(tool.label)}</div>
+                        class="group bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700/50 p-6 rounded-3xl text-left transition-all hover:scale-[1.02] shadow-lg">
+                    <div class="text-3xl mb-3">${escapeHtml(tool.icon)}</div>
+                    <div class="font-medium text-base text-zinc-100">${escapeHtml(tool.label)}</div>
+                    <div class="text-xs text-zinc-500 font-mono mt-1">${escapeHtml(tool.name)}</div>
                 </button>`;
         });
         document.getElementById('tools-list').innerHTML = html;
     }
 
     window.onload = () => {
-        const saved = localStorage.getItem('api_token');
-        if (saved) document.getElementById('api-token').value = saved;
-        document.getElementById('api-token')?.addEventListener('change', e => {
-            const v = e.target.value.trim();
-            if (v) localStorage.setItem('api_token', v); else localStorage.removeItem('api_token');
-        });
-        refreshDashboard();
+        updateAuthUI();
         initTools();
+        refreshDashboard();
     };
+
     setInterval(refreshDashboard, 5000);
 </script>
 </body>
