@@ -27,6 +27,7 @@
   - Возможность использования Legacy X-API-Token при включенном режиме обратной совместимости.
 - ⚡ **CI/CD и тесты:**
   - Автоматизированный пайплайн в GitHub Actions: Ruff linter, Pytest, Hadolint Dockerfile, Gitleaks, Trivy vulnerability scan.
+  - Политика Trivy: гейт `HIGH,CRITICAL` с `ignore-unfixed` — падают только *исправляемые* уязвимости; CVE без фикса от апстрима (например, в базовом Debian) не блокируют сборку, но видны в отчёте.
 
 ---
 
@@ -34,10 +35,10 @@
 
 | Слой | Технологии |
 |---|---|
-| **Backend** | Python 3.12, FastAPI, Pydantic v2, python-jose, passlib (bcrypt), Uvicorn |
+| **Backend** | Python 3.12, FastAPI 0.141 (Starlette 1.7), Pydantic v2, python-jose, passlib (bcrypt), Uvicorn |
 | **Frontend** | HTML5, Tailwind CSS CDN, Vanilla JS, Font Awesome |
 | **Containerization** | Docker, Docker Compose (Non-root `appuser`, read-only FS, cap_drop ALL) |
-| **Мониторинг** | Prometheus 2.54, Grafana 11.3, Google cAdvisor, Node Exporter |
+| **Мониторинг** | Prometheus v3.1, Grafana 11.3, Google cAdvisor, Node Exporter |
 | **Тестирование & CI** | Pytest, HTTPX, Ruff, Hadolint, Gitleaks, Trivy |
 
 ---
@@ -233,7 +234,9 @@ personal-devops-platform/
 │   ├── __init__.py
 │   ├── main.py                  # FastAPI приложение с JWT, RBAC и rate-limiting
 │   ├── requirements.txt         # Основные зависимости бэкенда
-│   └── test_main.py             # Полный набор тестов (13 тестовых сценариев)
+│   └── test_main.py             # Тесты API (13 сценариев: auth, RBAC, валидация, лимиты)
+├── tests/
+│   └── test_security_hardening.py # Тесты харденинга (18 сценариев)
 ├── frontend/
 │   └── index.html               # Веб-дашборд с авторизацией и auto-refresh токенов
 ├── monitoring/
@@ -246,9 +249,9 @@ personal-devops-platform/
 ├── .gitignore
 ├── docker-compose.yml           # Основной production-манифест
 ├── docker-compose.override.yml  # Dev-манифест с горячей перезагрузкой
-├── Dockerfile                   # Многоэтапный безопасный Dockerfile (non-root)
+├── Dockerfile                   # Безопасный Dockerfile (non-root appuser, read-only)
 ├── pytest.ini                   # Конфигурация Pytest
-├── requirements-dev.txt         # Dev-зависимости (pytest, httpx, ruff)
+├── requirements-dev.txt         # Dev-зависимости (pytest, httpx, httpx2, ruff)
 └── README.md                    # Документация проекта
 ```
 
