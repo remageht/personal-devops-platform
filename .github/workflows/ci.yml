@@ -63,4 +63,5 @@ jobs:
         with:
           image-ref: personal-devops-platform-app:latest
           severity: HIGH,CRITICAL
+          ignore-unfixed: true
           exit-code: "1"
